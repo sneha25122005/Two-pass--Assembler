@@ -7,18 +7,16 @@
 <style>
 
 body{
-font-family: Arial;
-background:#f5f7fb;
+font-family:Arial;
+background:#f4f6fb;
 margin:40px;
 }
 
-h1{
-text-align:center;
-}
+h1{text-align:center;}
 
 textarea{
 width:100%;
-height:200px;
+height:180px;
 padding:10px;
 font-size:15px;
 }
@@ -28,17 +26,13 @@ background:#4CAF50;
 color:white;
 padding:10px 20px;
 border:none;
-cursor:pointer;
 margin-top:10px;
-}
-
-button:hover{
-background:#45a049;
+cursor:pointer;
 }
 
 .container{
 display:grid;
-grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
 gap:20px;
 margin-top:30px;
 }
@@ -57,8 +51,8 @@ margin-top:10px;
 }
 
 th,td{
-border-bottom:1px solid #ddd;
 padding:8px;
+border-bottom:1px solid #ddd;
 text-align:center;
 }
 
@@ -75,21 +69,18 @@ color:white;
 
 <h1>Two Pass Assembler</h1>
 
-<textarea id="code">
-START 100
-MOVER AREG ='5'
-ADD BREG ONE
-MOVEM AREG RESULT
-ONE DC 1
-RESULT DS 1
-END
-</textarea>
+<textarea id="code"></textarea>
 
 <br>
 
 <button onclick="assemble()">Assemble</button>
 
 <div class="container">
+
+<div class="card">
+<h3>Pass-1 Instruction Table</h3>
+<div id="pass1"></div>
+</div>
 
 <div class="card">
 <h3>Symbol Table</h3>
@@ -101,8 +92,24 @@ END
 <div id="littab"></div>
 </div>
 
+<!-- NEW POOL TABLE CARD -->
+
 <div class="card">
-<h3>Machine Code</h3>
+<h3>Pool Table</h3>
+
+<table>
+<tr>
+<th>Pool Index</th>
+</tr>
+
+<tbody id="poolTable"></tbody>
+
+</table>
+
+</div>
+
+<div class="card">
+<h3>Pass-2 Machine Code</h3>
 <div id="machine"></div>
 </div>
 
@@ -116,22 +123,32 @@ let code=document.getElementById("code").value;
 
 fetch("/assemble",{
 method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
+headers:{"Content-Type":"application/json"},
 body:JSON.stringify({code:code})
 })
+
 .then(res=>res.json())
 .then(data=>{
 
-console.log(data); // debugging
+/* PASS 1 TABLE */
+
+let p1="<table><tr><th>LC</th><th>Instruction</th></tr>";
+
+data.pass1_table.forEach(row=>{
+p1+=`<tr><td>${row.LC}</td><td>${row.INSTRUCTION}</td></tr>`;
+});
+
+p1+="</table>";
+
+document.getElementById("pass1").innerHTML=p1;
+
 
 /* SYMBOL TABLE */
 
 let sym="<table><tr><th>Symbol</th><th>Address</th></tr>";
 
-for(let k in data.symbol_table){
-sym+=`<tr><td>${k}</td><td>${data.symbol_table[k]}</td></tr>`;
+for(let k in data.symtab){
+sym+=`<tr><td>${k}</td><td>${data.symtab[k]}</td></tr>`;
 }
 
 sym+="</table>";
@@ -143,8 +160,8 @@ document.getElementById("symtab").innerHTML=sym;
 
 let lit="<table><tr><th>Literal</th><th>Address</th></tr>";
 
-for(let k in data.literal_table){
-lit+=`<tr><td>${k}</td><td>${data.literal_table[k]}</td></tr>`;
+for(let k in data.littab){
+lit+=`<tr><td>${k}</td><td>${data.littab[k]}</td></tr>`;
 }
 
 lit+="</table>";
@@ -152,33 +169,36 @@ lit+="</table>";
 document.getElementById("littab").innerHTML=lit;
 
 
-/* MACHINE CODE TABLE */
+/* POOL TABLE */
 
-let mc="<table><tr><th>LC</th><th>Opcode</th><th>Machine Code</th><th>Register</th><th>Address</th></tr>";
+let poolBody = document.getElementById("poolTable");
+poolBody.innerHTML="";
 
-if(data.machine_code){
+data.pooltab.forEach(p=>{
+let row=`<tr>
+<td>${p}</td>
+</tr>`;
+poolBody.innerHTML+=row;
+});
 
-data.machine_code.forEach(row=>{
 
+/* PASS 2 MACHINE CODE */
+
+let mc="<table><tr><th>LC</th><th>Opcode</th><th>Register</th><th>Address</th></tr>";
+
+data.pass2_table.forEach(row=>{
 mc+=`<tr>
 <td>${row.LC}</td>
 <td>${row.OPCODE}</td>
-<td>${row.MACHINE_CODE}</td>
 <td>${row.REGISTER}</td>
 <td>${row.ADDRESS}</td>
 </tr>`;
-
 });
-
-}
 
 mc+="</table>";
 
 document.getElementById("machine").innerHTML=mc;
 
-})
-.catch(err=>{
-console.error("Error:",err);
 });
 
 }

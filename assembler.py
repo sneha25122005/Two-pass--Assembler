@@ -1,7 +1,10 @@
 def pass_one(lines):
 
     symtab = {}
-    littab = {}
+    littab = []
+    pooltab = [0]
+    pass1_table = []
+
     lc = 0
 
     for line in lines:
@@ -18,26 +21,52 @@ def pass_one(lines):
         if parts[0] == "END":
             break
 
-        # label detection
-        if len(parts) == 3:
+        # SYMBOL DETECTION
+        if len(parts) == 3 and parts[1] in ["DC","DS"]:
             label = parts[0]
             symtab[label] = lc
 
-        operand = parts[-1]
+        opcode = ""
+        reg = ""
+        operand = ""
+
+        if len(parts) == 3:
+            opcode = parts[0]
+            reg = parts[1]
+            operand = parts[2]
+
+        elif len(parts) == 2:
+            opcode = parts[0]
+            operand = parts[1]
+
+        else:
+            opcode = parts[0]
 
         # literal detection
         if operand.startswith("="):
-            if operand not in littab:
-                littab[operand] = None
+            if operand not in [l["literal"] for l in littab]:
+                littab.append({"literal": operand, "address": None})
+
+        pass1_table.append({
+            "LC": lc,
+            "INSTRUCTION": line
+        })
 
         lc += 1
 
     # assign literal addresses
-    for lit in littab:
-        littab[lit] = lc
+    start = pooltab[-1]
+
+    for i in range(start, len(littab)):
+        littab[i]["address"] = lc
         lc += 1
 
-    return symtab, littab
+    # convert literal table format
+    literal_table = {l["literal"]: l["address"] for l in littab}
+
+    return symtab, literal_table, pooltab, pass1_table
+
+
 def pass_two(lines, symtab, littab):
 
     optab = {
@@ -72,17 +101,17 @@ def pass_two(lines, symtab, littab):
         if parts[0] == "END":
             break
 
-        # remove label if exists
-        if len(parts) == 3:
-            opcode = parts[0]
+        opcode = parts[0]
+        reg = ""
+        operand = ""
+
+        if len(parts) >= 2:
             reg = parts[1]
-            operand = parts[2]
-        else:
-            opcode = parts[0]
-            reg = parts[1]
+
+        if len(parts) >= 3:
             operand = parts[2]
 
-        op = optab.get(opcode, "??")
+        op = optab.get(opcode, "--")
         r = registers.get(reg, 0)
 
         addr = 0
@@ -96,7 +125,6 @@ def pass_two(lines, symtab, littab):
         machine.append({
             "LC": lc,
             "OPCODE": opcode,
-            "MACHINE_CODE": op,
             "REGISTER": r,
             "ADDRESS": addr
         })
